@@ -1,0 +1,73 @@
+pipeline:
+  name: "Retail Data Warehouse ETL"
+  version: "1.0.0"
+
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  warehouse: "warehouse.db"
+  quarantine: "data/quarantine"
+  logs: "logs"
+
+extract:
+  source_file: "superstore_sales.csv"
+  date_columns:
+    - "order_date"
+    - "ship_date"
+  required_columns:
+    - "order_id"
+    - "order_date"
+    - "customer_id"
+    - "product_id"
+    - "sales"
+    - "quantity"
+    - "profit"
+  numeric_columns:
+    - "sales"
+    - "quantity"
+    - "discount"
+    - "profit"
+
+transform:
+  date_range:
+    start: "2020-01-01"
+    end: "2024-12-31"
+  fiscal_year_start_month: 4  # April = Q1
+  discount_threshold: 0.0     # Flag any discount > 0
+
+load:
+  batch_size: 5000
+  replace_existing: true
+
+quality:
+  completeness:
+    max_null_pct: 0.0
+    critical_columns:
+      - "order_id"
+      - "customer_key"
+      - "product_key"
+      - "sales_amount"
+  uniqueness:
+    primary_keys:
+      dim_customer: "customer_key"
+      dim_product: "product_key"
+      dim_date: "date_key"
+      dim_ship_mode: "ship_mode_key"
+      fact_sales: "sale_key"
+  referential_integrity:
+    fact_sales:
+      customer_key: "dim_customer.customer_key"
+      product_key: "dim_product.product_key"
+      date_key: "dim_date.date_key"
+      ship_date_key: "dim_date.date_key"
+      ship_mode_key: "dim_ship_mode.ship_mode_key"
+  range_checks:
+    quantity: { min: 1, max: 1000 }
+    discount: { min: 0.0, max: 1.0 }
+    sales_amount: { min: 0.01 }
+
+data_generation:
+  num_orders: 10000
+  num_customers: 800
+  num_products: 1500
+  seed: 42

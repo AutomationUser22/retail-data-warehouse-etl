@@ -1,0 +1,5 @@
+pandas>=2.0.0
+# duckdb>=0.9.0  # Optional: swap SQLite for DuckDB in production
+pyyaml>=6.0
+pytest>=7.0.0
+numpy>=1.24.0

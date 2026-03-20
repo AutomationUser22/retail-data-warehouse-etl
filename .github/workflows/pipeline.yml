@@ -1,0 +1,76 @@
+name: ETL Pipeline
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'           # Every Monday at 6 AM UTC
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'config.yaml'
+      - 'requirements.txt'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:                # Manual trigger from GitHub UI
+
+jobs:
+  run-pipeline:
+    name: Run ETL Pipeline
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run full ETL pipeline
+        run: python -m src.pipeline
+        
+      - name: Upload warehouse artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: warehouse-${{ github.run_number }}
+          path: |
+            warehouse.db
+            data/processed/
+          retention-days: 30
+
+      - name: Upload quarantine report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarantine-${{ github.run_number }}
+          path: data/quarantine/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  run-tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run test suite
+        run: pytest tests/ -v --tb=short
